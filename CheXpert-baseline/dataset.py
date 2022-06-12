@@ -7,7 +7,7 @@ from utils import *
 
 
 class CheXpertDataset(Dataset):
-    def __init__(self, mode, data_dir=r"..\data", transform=None, target_transform=None):
+    def __init__(self, mode, data_dir=r"..\data\CheXpert", transform=None, target_transform=None):
         self.data_dir = data_dir
         self.mode = mode
         self.transform = transform

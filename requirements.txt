@@ -15,3 +15,4 @@ efficientnet==1.1.1
 tqdm==4.61.1
 lime==0.2.0.1
 torchmetrics==0.9.1
+PyDrive==1.3.1
