@@ -8,4 +8,4 @@ class Configs:
     CHECKPOINT_DIR = r"\model_checkpoints"
     ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
-    UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
+    UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]////
