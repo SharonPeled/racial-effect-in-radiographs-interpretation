@@ -40,11 +40,12 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
         results['valid_auc'].append(valid_auc)
     except Exception as e:
         print(e)
+    # metadata for file naming
     metadata = {
         "epoch": epoch,
         "iter": i,
         "trainLastLoss": np.mean(results["train_loss"][-100:]),
-        "validAUC": results["valid_auc"]
+        "validAUC": results["valid_auc"][-1]
     }
     time_str = get_time_str()
     metadata_suffix = '__'.join([f"{k}-{round(v,4)}" for k, v in metadata.items()])
