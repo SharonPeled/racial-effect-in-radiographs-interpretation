@@ -34,14 +34,17 @@ def get_time_str():
 
 
 def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, TrainingConfigs):
-    valid_loss, valid_auc = calc_auc_score(model, valid_dataloader, criterion)
-    results['valid_loss'].append(valid_loss.item())
-    results['valid_auc'].append(valid_auc)
+    try:
+        valid_loss, valid_auc = calc_auc_score(model, valid_dataloader, criterion)
+        results['valid_loss'].append(valid_loss.item())
+        results['valid_auc'].append(valid_auc)
+    except Exception as e:
+        print(e)
     metadata = {
         "epoch": epoch,
         "iter": i,
         "trainLastLoss": np.mean(results["train_loss"][-100:]),
-        "validAUC": results["valid_auc"][-1]
+        "validAUC": results["valid_auc"]
     }
     time_str = get_time_str()
     metadata_suffix = '__'.join([f"{k}-{round(v,4)}" for k, v in metadata.items()])
@@ -50,6 +53,13 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
     statedata = {**metadata, **{"model": model.state_dict(), "results": results}}
     torch.save(statedata, filepath)
     print(f"{time_str}: Checkpoint Created.")
+    print('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
+          % (epoch + 1, TrainingConfigs.EPOCHS,
+             i, len(TrainingConfigs.TRAIN_LOADER_SIZE) - 1,
+             np.mean(results["train_loss"][-100:]),
+             results["valid_loss"][-1],
+             results["valid_auc"][-1]),
+          end="\n\n")
 
 
 def avg_auc(outputs, labels):
@@ -62,12 +72,13 @@ def calc_auc_score(model, dataloader, criterion=None):
     all_labels = []
     all_outputs = []
     model.eval()
-    for i, (images, labels) in enumerate(dataloader):
-        images = to_gpu(images)
-        outputs = model(images).cpu()
-        all_outputs.append(outputs)
-        labels = labels.cpu()
-        all_labels.append(labels)
+    with torch.no_grad():
+        for i, (images, labels) in enumerate(dataloader):
+            images = to_gpu(images)
+            outputs = model(images).cpu()
+            all_outputs.append(outputs)
+            labels = labels.cpu()
+            all_labels.append(labels)
     all_outputs, all_labels = torch.cat(all_outputs), torch.cat(all_labels)
     auc_value = avg_auc(all_outputs, all_labels)
     if auc_value > 1:
@@ -86,9 +97,9 @@ def get_previos_training_place(model, TrainingConfigs):
     _, _, files = next(os.walk(TrainingConfigs.CHECKPOINT_DIR))
     if not files:
         results = {
-            "train_loss": [],
-            "valid_loss": [],
-            "valid_auc": []
+            "train_loss": [-1],
+            "valid_loss": [-1],
+            "valid_auc": [-1]
         }
         return model, results, 0, -1
     model_filename = [filename for filename in files if filename.split("__")[1] == TrainingConfigs.MODEL_VERSION][-1]
