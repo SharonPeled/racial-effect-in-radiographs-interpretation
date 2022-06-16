@@ -62,12 +62,13 @@ def calc_auc_score(model, dataloader, criterion=None):
     all_labels = []
     all_outputs = []
     model.eval()
-    for i, (images, labels) in enumerate(dataloader):
-        images = to_gpu(images)
-        outputs = model(images).cpu()
-        all_outputs.append(outputs)
-        labels = labels.cpu()
-        all_labels.append(labels)
+    with torch.no_grad():
+      for i, (images, labels) in enumerate(dataloader):
+          images = to_gpu(images)
+          outputs = model(images).cpu()
+          all_outputs.append(outputs)
+          labels = labels.cpu()
+          all_labels.append(labels)
     all_outputs, all_labels = torch.cat(all_outputs), torch.cat(all_labels)
     auc_value = avg_auc(all_outputs, all_labels)
     if auc_value > 1:
