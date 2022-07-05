@@ -56,7 +56,7 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
     print(f"{time_str}: Checkpoint Created.")
     print('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
           % (epoch + 1, TrainingConfigs.EPOCHS,
-             i, len(TrainingConfigs.TRAIN_LOADER_SIZE) - 1,
+             i, TrainingConfigs.TRAIN_LOADER_SIZE - 1,
              np.mean(results["train_loss"][-100:]),
              results["valid_loss"][-1],
              results["valid_auc"][-1]),
@@ -96,6 +96,7 @@ def get_previos_training_place(model, TrainingConfigs):
     if TrainingConfigs.TRAINED_MODEL_PATH:
         return load_statedict(model, TrainingConfigs.TRAINED_MODEL_PATH)
     _, _, files = next(os.walk(TrainingConfigs.CHECKPOINT_DIR))
+    files = [filename for filename in files if filename.split("__")[1] == TrainingConfigs.MODEL_VERSION]
     if not files:
         results = {
             "train_loss": [-1],
@@ -103,7 +104,7 @@ def get_previos_training_place(model, TrainingConfigs):
             "valid_auc": [-1]
         }
         return model, results, 0, -1
-    model_filename = [filename for filename in files if filename.split("__")[1] == TrainingConfigs.MODEL_VERSION][-1]
+    model_filename = files[-1]
     return load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename))
 
 
