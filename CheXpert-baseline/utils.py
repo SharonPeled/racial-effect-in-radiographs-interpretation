@@ -3,7 +3,7 @@ import numpy as np
 import os
 import torch
 from torch import nn
-from torchmetrics.functional import auc
+from torchmetrics.functional import auc # TODO: remove this and change auc calc
 import random
 import datetime
 
@@ -63,7 +63,7 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
           end="\n\n")
 
 
-def avg_auc(outputs, labels):
+def avg_auc(outputs, labels): # TODO: change this
     softmax = nn.Softmax(dim=1)
     probas = softmax(outputs).T
     return np.mean([auc(y_proba, y_true, reorder=True) for y_proba, y_true in zip(probas, labels.T)])
