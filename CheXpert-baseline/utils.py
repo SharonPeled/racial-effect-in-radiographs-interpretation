@@ -41,6 +41,8 @@ def vprint(s:str, **print_kargs):
     Verbose=1: vprints to stdout
     Verbose=2: vprint to stdout and to OUT_FILE
     """
+    curr_time = str(datetime.datetime.now())[:-10]
+    s = f"{curr_time}: {s}"
     if Configs.VERBOSE == 0:
         return
     if Configs.VERBOSE >= 1:
