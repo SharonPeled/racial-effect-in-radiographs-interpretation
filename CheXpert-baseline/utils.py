@@ -3,16 +3,23 @@ import numpy as np
 import os
 import torch
 from torch import nn
-from torchmetrics.functional import auc # TODO: remove this and change auc calc
 import random
 import datetime
+from sklearn.metrics import roc_auc_score
 
 
 @dataclass
 class Configs:
+    # configuration for the entire project
     SEED = 123
     NUM_CLASSES = 5
-    ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
+    VERBOSE = 2
+    OUT_FILE = r"log.txt"
+    ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
+                      'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia',
+                      'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other',
+                      'Fracture', 'Support Devices']
+    CHALLENGE_ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
     UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
 
@@ -27,6 +34,22 @@ def to_gpu(x):
     return x.cuda() if torch.cuda.is_available() else x
 
 
+def vprint(s:str, **print_kargs):
+    """
+    verbose based vprint
+    Verbose=0: suppress vprints
+    Verbose=1: vprints to stdout
+    Verbose=2: vprint to stdout and to OUT_FILE
+    """
+    if Configs.VERBOSE == 0:
+        return
+    if Configs.VERBOSE >= 1:
+        print(s, **print_kargs)
+    if Configs.VERBOSE == 2:
+        with open(Configs.OUT_FILE, "a") as file:
+            file.write(str(s) + '\n')
+
+
 def get_time_str():
     time_str = str(datetime.datetime.now())[:-10]
     trans = str.maketrans("-: ","__-")
@@ -35,11 +58,11 @@ def get_time_str():
 
 def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, TrainingConfigs):
     try:
-        valid_loss, valid_auc = calc_auc_score(model, valid_dataloader, criterion)
+        valid_loss, valid_auc = calc_scores(['loss', 'auc'], model, valid_dataloader, criterion)
         results['valid_loss'].append(valid_loss.item())
         results['valid_auc'].append(valid_auc)
     except Exception as e:
-        print(e)
+        vprint(e)
     # metadata for file naming
     metadata = {
         "epoch": epoch,
@@ -53,8 +76,8 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
     filepath = os.path.join(TrainingConfigs.CHECKPOINT_DIR, filename)
     statedata = {**metadata, **{"model": model.state_dict(), "results": results}}
     torch.save(statedata, filepath)
-    print(f"{time_str}: Checkpoint Created.")
-    print('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
+    vprint(f"{time_str}: Checkpoint Created.")
+    vprint('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
           % (epoch + 1, TrainingConfigs.EPOCHS,
              i, TrainingConfigs.TRAIN_LOADER_SIZE - 1,
              np.mean(results["train_loss"][-100:]),
@@ -63,33 +86,33 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
           end="\n\n")
 
 
-def avg_auc(outputs, labels): # TODO: change this
-    softmax = nn.Softmax(dim=1)
-    probas = softmax(outputs).T
-    return np.mean([auc(y_proba, y_true, reorder=True) for y_proba, y_true in zip(probas, labels.T)])
+def calc_scores(scores, model, dataloader, criterion=None):
+    labels, outputs = get_metric_tensors(model, dataloader)
+    scores_val = []
+    if 'loss' in scores:
+        scores_val.append(criterion(labels, outputs))
+    if 'auc' in scores:
+        scores_val.append(auc_score(labels, outputs))
+    return scores_val
 
 
-def calc_auc_score(model, dataloader, criterion=None):
+def get_metric_tensors(model, dataloader):
     all_labels = []
     all_outputs = []
     model.eval()
     with torch.no_grad():
         for i, (images, labels) in enumerate(dataloader):
             images = to_gpu(images)
-            outputs = model(images).cpu()
+            outputs = model(images)
             all_outputs.append(outputs)
-            labels = labels.cpu()
             all_labels.append(labels)
-    all_outputs, all_labels = torch.cat(all_outputs), torch.cat(all_labels)
-    auc_value = avg_auc(all_outputs, all_labels)
-    if auc_value > 1:
-        print(all_outputs, all_labels)
-        input()
-    loss_value = None
-    if criterion:
-        loss_value = criterion(all_outputs, all_labels)
-    model.train()
-    return loss_value, auc_value
+    all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
+    return all_labels, all_outputs
+
+
+def auc_score(labels, outputs, **kargs):
+    outputs = torch.sigmoid(outputs)
+    return roc_auc_score(labels, outputs, **kargs)
 
 
 def get_previos_training_place(model, TrainingConfigs):
@@ -112,7 +135,6 @@ def load_statedict(model, path):
     statedata = torch.load(path)
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
+    vprint(f"Loaded model - epoch:{statedata['epoch']}, iter:{statedata['iter']}")
     return [statedata[k] for k in ['model', 'results', 'epoch', 'iter']]
-
-
 
