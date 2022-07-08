@@ -118,6 +118,8 @@ def auc_score(labels, outputs, **kargs):
 
 
 def get_previos_training_place(model, TrainingConfigs):
+    if not os.path.isdir(TrainingConfigs.CHECKPOINT_DIR):
+        os.mkdir(TrainingConfigs.CHECKPOINT_DIR)
     if TrainingConfigs.TRAINED_MODEL_PATH:
         return load_statedict(model, TrainingConfigs.TRAINED_MODEL_PATH)
     _, _, files = next(os.walk(TrainingConfigs.CHECKPOINT_DIR))
