@@ -12,7 +12,7 @@ from sklearn.metrics import roc_auc_score
 class Configs:
     # configuration for the entire project
     SEED = 123
-    NUM_CLASSES = 5
+    NUM_CLASSES = 14
     VERBOSE = 2
     OUT_FILE = r"log.txt"
     ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
@@ -137,7 +137,7 @@ def get_previos_training_place(model, TrainingConfigs):
 
 
 def load_statedict(model, path):
-    statedata = torch.load(path)
+    statedata = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
     vprint(f"Loaded model - epoch:{statedata['epoch']}, iter:{statedata['iter']}")

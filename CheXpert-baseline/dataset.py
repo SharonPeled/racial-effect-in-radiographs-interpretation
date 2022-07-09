@@ -28,7 +28,7 @@ class CheXpertDataset(Dataset):
     def __getitem__(self, idx):
         img_label = self.labels.loc[idx]
         image = Image.open(img_label.Path).convert("RGB")
-        label = torch.from_numpy(img_label[Configs.CHALLENGE_ANNOTATIONS_COLUMNS].astype(np.float32).values)
+        label = torch.from_numpy(img_label[Configs.ALL_ANNOTATIONS_COLUMNS].astype(np.float32).values)
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
