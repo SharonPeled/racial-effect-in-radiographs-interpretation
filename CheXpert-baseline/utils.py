@@ -69,6 +69,7 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
     metadata = {
         "epoch": epoch,
         "iter": i,
+        "batch_size": TrainingConfigs.BATCH_SIZE,
         "trainLastLoss": np.mean(results["train_loss"][-100:]),
         "validAUC": results["valid_auc"][-1]
     }
