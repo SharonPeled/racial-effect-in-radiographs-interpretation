@@ -137,7 +137,7 @@ def get_previos_training_place(model, TrainingConfigs):
 
 
 def load_statedict(model, path):
-    statedata = torch.load(path)
+    statedata = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
     vprint(f"Loaded model - epoch:{statedata['epoch']}, iter:{statedata['iter']}")
