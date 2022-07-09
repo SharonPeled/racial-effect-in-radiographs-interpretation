@@ -115,7 +115,13 @@ def get_metric_tensors(model, dataloader):
 
 def auc_score(labels, outputs, **kargs):
     outputs = torch.sigmoid(outputs)
-    return roc_auc_score(labels, outputs, **kargs)
+    AUROCs = []
+    for i in range(Configs.NUM_CLASSES):
+        try:
+            AUROCs.append(roc_auc_score(labels[:, i], outputs[:, i], **kargs))
+        except:
+            pass
+    return np.mean(AUROCs)
 
 
 def get_previos_training_place(model, TrainingConfigs):
