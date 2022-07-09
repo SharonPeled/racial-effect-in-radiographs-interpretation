@@ -12,7 +12,7 @@ from sklearn.metrics import roc_auc_score
 class Configs:
     # configuration for the entire project
     SEED = 123
-    NUM_CLASSES = 5
+    NUM_CLASSES = 14
     VERBOSE = 2
     OUT_FILE = r"log.txt"
     ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
