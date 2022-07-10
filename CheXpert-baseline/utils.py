@@ -12,7 +12,6 @@ from sklearn.metrics import roc_auc_score
 class Configs:
     # configuration for the entire project
     SEED = 123
-    NUM_CLASSES = 14
     VERBOSE = 2
     OUT_FILE = r"log.txt"
     ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
@@ -22,6 +21,8 @@ class Configs:
     CHALLENGE_ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
     UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
+    ANNOTATIONS_COLUMNS = CHALLENGE_ANNOTATIONS_COLUMNS
+    NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
 
 
 def set_seed():
@@ -118,13 +119,15 @@ def auc_score(labels, outputs, **kargs):
     AUROCs = []
     for i in range(Configs.NUM_CLASSES):
         try:
+            # there are classes with single class value in validation
+            # which throws an error
             AUROCs.append(roc_auc_score(labels[:, i], outputs[:, i], **kargs))
         except:
             pass
     return np.mean(AUROCs)
 
 
-def get_previos_training_place(model, TrainingConfigs):
+def get_previous_training_place(model, TrainingConfigs):
     if not os.path.isdir(TrainingConfigs.CHECKPOINT_DIR):
         os.mkdir(TrainingConfigs.CHECKPOINT_DIR)
     if TrainingConfigs.TRAINED_MODEL_PATH:
@@ -143,9 +146,9 @@ def get_previos_training_place(model, TrainingConfigs):
 
 
 def load_statedict(model, path):
+    vprint(f"Loading model - {path}")
     statedata = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
-    vprint(f"Loaded model - epoch:{statedata['epoch']}, iter:{statedata['iter']}")
     return [statedata[k] for k in ['model', 'results', 'epoch', 'iter']]
 
