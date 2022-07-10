@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
 import os
 import torch
 from torch import nn
@@ -12,7 +13,6 @@ from sklearn.metrics import roc_auc_score
 class Configs:
     # configuration for the entire project
     SEED = 123
-    NUM_CLASSES = 14
     VERBOSE = 2
     OUT_FILE = r"log.txt"
     ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
@@ -22,6 +22,8 @@ class Configs:
     CHALLENGE_ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
     UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
+    ANNOTATIONS_COLUMNS = CHALLENGE_ANNOTATIONS_COLUMNS
+    NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
 
 
 def set_seed():
@@ -89,8 +91,8 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
           end="\n\n")
 
 
-def calc_scores(scores, model, dataloader, criterion=None):
-    labels, outputs = get_metric_tensors(model, dataloader)
+def calc_scores(scores, model, dataloader, criterion=None, by_study=None):
+    labels, outputs = get_metric_tensors(model, dataloader, by_study=by_study)
     scores_val = []
     if 'loss' in scores:
         scores_val.append(criterion(labels, outputs))
@@ -99,7 +101,11 @@ def calc_scores(scores, model, dataloader, criterion=None):
     return scores_val
 
 
-def get_metric_tensors(model, dataloader):
+def get_metric_tensors(model, dataloader, by_study=None):
+    """
+    by_study - if None it's ignored. Else should be an agg function to apply on study view outputs.
+    For example: max (as in the original paper), mean, min, etc.
+    """
     all_labels = []
     all_outputs = []
     model.eval()
@@ -110,15 +116,33 @@ def get_metric_tensors(model, dataloader):
             all_outputs.append(outputs)
             all_labels.append(labels)
     all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
+    if by_study:
+        all_labels_df = pd.DataFrame(all_labels, columns=Configs.ANNOTATIONS_COLUMNS)
+        all_labels_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
+            ["patient_id", "study", "view", "Frontal/Lateral"]]
+        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS].values
+        all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.ANNOTATIONS_COLUMNS)
+        all_outputs_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
+            ["patient_id", "study", "view", "Frontal/Lateral"]]
+        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
+        return study_labels.values, study_outputs.values
     return all_labels, all_outputs
 
 
 def auc_score(labels, outputs, **kargs):
     outputs = torch.sigmoid(outputs)
-    return roc_auc_score(labels, outputs, **kargs)
+    AUROCs = []
+    for i in range(Configs.NUM_CLASSES):
+        try:
+            # there are classes with single class value in validation
+            # which throws an error
+            AUROCs.append(roc_auc_score(labels[:, i], outputs[:, i], **kargs))
+        except:
+            pass
+    return np.mean(AUROCs)
 
 
-def get_previos_training_place(model, TrainingConfigs):
+def get_previous_training_place(model, TrainingConfigs):
     if not os.path.isdir(TrainingConfigs.CHECKPOINT_DIR):
         os.mkdir(TrainingConfigs.CHECKPOINT_DIR)
     if TrainingConfigs.TRAINED_MODEL_PATH:
@@ -137,9 +161,9 @@ def get_previos_training_place(model, TrainingConfigs):
 
 
 def load_statedict(model, path):
+    vprint(f"Loading model - {path}")
     statedata = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
-    vprint(f"Loaded model - epoch:{statedata['epoch']}, iter:{statedata['iter']}")
     return [statedata[k] for k in ['model', 'results', 'epoch', 'iter']]
 
