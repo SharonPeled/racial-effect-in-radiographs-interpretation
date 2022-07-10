@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
 import os
 import torch
 from torch import nn
@@ -90,8 +91,8 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
           end="\n\n")
 
 
-def calc_scores(scores, model, dataloader, criterion=None):
-    labels, outputs = get_metric_tensors(model, dataloader)
+def calc_scores(scores, model, dataloader, criterion=None, by_study=None):
+    labels, outputs = get_metric_tensors(model, dataloader, by_study=by_study)
     scores_val = []
     if 'loss' in scores:
         scores_val.append(criterion(labels, outputs))
@@ -100,7 +101,11 @@ def calc_scores(scores, model, dataloader, criterion=None):
     return scores_val
 
 
-def get_metric_tensors(model, dataloader):
+def get_metric_tensors(model, dataloader, by_study=None):
+    """
+    by_study - if None it's ignored. Else should be an agg function to apply on study view outputs.
+    For example: max (as in the original paper), mean, min, etc.
+    """
     all_labels = []
     all_outputs = []
     model.eval()
@@ -111,6 +116,16 @@ def get_metric_tensors(model, dataloader):
             all_outputs.append(outputs)
             all_labels.append(labels)
     all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
+    if by_study:
+        all_labels_df = pd.DataFrame(all_labels, columns=Configs.ANNOTATIONS_COLUMNS)
+        all_labels_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
+            ["patient_id", "study", "view", "Frontal/Lateral"]]
+        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS].values
+        all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.ANNOTATIONS_COLUMNS)
+        all_outputs_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
+            ["patient_id", "study", "view", "Frontal/Lateral"]]
+        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
+        return study_labels.values, study_outputs.values
     return all_labels, all_outputs
 
 
