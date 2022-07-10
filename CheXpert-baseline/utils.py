@@ -22,7 +22,7 @@ class Configs:
     CHALLENGE_ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
     UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
-    ANNOTATIONS_COLUMNS = CHALLENGE_ANNOTATIONS_COLUMNS
+    ANNOTATIONS_COLUMNS = ALL_ANNOTATIONS_COLUMNS
     NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
 
 
@@ -60,9 +60,11 @@ def get_time_str():
     return time_str.translate(trans)
 
 
-def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, TrainingConfigs):
+def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, TrainingConfigs, by_study=None,
+                      challenge_ann_only=None):
     try:
-        valid_loss, valid_auc = calc_scores(['loss', 'auc'], model, valid_dataloader, criterion)
+        valid_loss, valid_auc = calc_scores(['loss', 'auc'], model, valid_dataloader, criterion,
+                                            by_study, challenge_ann_only)
         results['valid_loss'].append(valid_loss.item())
         results['valid_auc'].append(valid_auc)
     except Exception as e:
@@ -91,8 +93,8 @@ def create_checkpoint(model, epoch, i, valid_dataloader, criterion, results, Tra
           end="\n\n")
 
 
-def calc_scores(scores, model, dataloader, criterion=None, by_study=None):
-    labels, outputs = get_metric_tensors(model, dataloader, by_study=by_study)
+def calc_scores(scores, model, dataloader, criterion=None, by_study=None, challenge_ann_only=None):
+    labels, outputs = get_metric_tensors(model, dataloader, by_study, challenge_ann_only)
     scores_val = []
     if 'loss' in scores:
         scores_val.append(criterion(labels, outputs))
@@ -101,7 +103,7 @@ def calc_scores(scores, model, dataloader, criterion=None, by_study=None):
     return scores_val
 
 
-def get_metric_tensors(model, dataloader, by_study=None):
+def get_metric_tensors(model, dataloader, by_study=None, challenge_ann_only=False):
     """
     by_study - if None it's ignored. Else should be an agg function to apply on study view outputs.
     For example: max (as in the original paper), mean, min, etc.
@@ -120,12 +122,17 @@ def get_metric_tensors(model, dataloader, by_study=None):
         all_labels_df = pd.DataFrame(all_labels, columns=Configs.ANNOTATIONS_COLUMNS)
         all_labels_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
             ["patient_id", "study", "view", "Frontal/Lateral"]]
-        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS].values
+        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS]
         all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.ANNOTATIONS_COLUMNS)
         all_outputs_df[["patient_id", "study", "view", "Frontal/Lateral"]] = dataloader.dataset.labels[
             ["patient_id", "study", "view", "Frontal/Lateral"]]
-        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
-        return study_labels.values, study_outputs.values
+        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.ANNOTATIONS_COLUMNS]
+        all_labels, all_outputs = torch.Tensor(study_labels.values), torch.Tensor(study_outputs.values)
+    if challenge_ann_only:
+        col_inds = [i for i, col in enumerate(Configs.ANNOTATIONS_COLUMNS)
+                       if col in Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
+        all_labels = all_labels[:,col_inds]
+        all_outputs = all_outputs[:,col_inds]
     return all_labels, all_outputs
 
 
