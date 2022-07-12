@@ -22,7 +22,7 @@ class Configs:
     CHALLENGE_ANNOTATIONS_COLUMNS = ["Atelectasis", "Cardiomegaly", "Consolidation", "Edema", "Pleural Effusion"]
     UONES_COLUMNS = ["Edema", "Pleural Effusion", "Atelectasis"]
     UZEROS_COLUMNS = ["Cardiomegaly", "Consolidation"]
-    ANNOTATIONS_COLUMNS = ALL_ANNOTATIONS_COLUMNS
+    ANNOTATIONS_COLUMNS = CHALLENGE_ANNOTATIONS_COLUMNS
     NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
 
 
@@ -52,6 +52,7 @@ def vprint(s:str, **print_kargs):
     if Configs.VERBOSE == 2:
         with open(Configs.OUT_FILE, "a") as file:
             file.write(str(s) + '\n')
+            file.flush()
 
 
 def get_time_str():
