@@ -1,0 +1,24 @@
+import pandas as pd
+import os
+from collections import defaultdict
+from CheXpert.generic_dataset import CheXpertDataset
+from utils import Configs
+
+
+class CheXpertRaceDataset(CheXpertDataset):
+    def __init__(self, data_dir, demo_filename, labels_filename, transform=None, target_transform=None):
+        super().__init__(data_dir, labels_filename, transform, target_transform)
+        self.original_demo = pd.read_csv(demo_filename)
+        self.transform_df_labels()
+
+    def transform_df_labels(self):
+        self.df_labels = self.original_demo.copy()
+        self.original_labels['img_path'] = self.original_labels.Path.apply(
+            lambda p: os.path.abspath(os.path.join(self.data_dir, p[20:])))
+        self.original_labels['PATIENT'] = self.original_labels.Path.apply(lambda p: p.split("/")[2])
+        reversed_race_dict = defaultdict(lambda: None,
+                                         dict((v, k) for k, v_list in Configs.RACE_DICT.items() for v in v_list))
+        self.df_labels['race'] = self.df_labels.PRIMARY_RACE.apply(lambda r: reversed_race_dict[r])
+        self.df_labels.dropna(subset=['race'], inplace=True)
+        self.df_labels = self.df_labels.merge(self.original_labels, how='inner', on='PATIENT')
+        self.ann_cols = ['race']
