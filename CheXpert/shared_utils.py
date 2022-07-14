@@ -100,6 +100,7 @@ def get_metric_tensors(model, dataloader, TrainingConfigs, by_study=None, challe
             outputs = model(images)
             all_outputs.append(outputs)
             all_labels.append(labels)
+    model.train()
     all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
     if by_study:
         all_labels_df = pd.DataFrame(all_labels, columns=TrainingConfigs.ANNOTATIONS_COLUMNS)
