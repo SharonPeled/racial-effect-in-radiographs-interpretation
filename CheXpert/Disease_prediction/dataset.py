@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from CheXpert.generic_dataset import CheXpertDataset
-from utils import Configs
+from CheXpert.Disease_prediction.utils import Configs
 
 
 class CheXpertDiseaseDataset(CheXpertDataset):
