@@ -22,6 +22,9 @@ if __name__ == "__main__":
    A notebook with the execution outputs will be generated (second argument).
    The third argument is a dictionary with notebook parameters (see papermill for more information), optional.
    Especially useful for training NN.
+   Note: since the notebook execution is triggered from this script, the PYTHONPATH is set to the 
+   current directory. Therefore, imports may fail due to incorrect path. A simple solution is to located the notebook 
+   in the same directory as the execute.py script.
    """
    catchable_sigs = set(signal.Signals) - {signal.SIGKILL, signal.SIGSTOP}
    for sig in catchable_sigs:
