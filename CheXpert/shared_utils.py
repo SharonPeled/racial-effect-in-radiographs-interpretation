@@ -166,7 +166,19 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Training
     files.sort(key=lambda filename: (int(filename.split("epoch-")[1].split("__")[0]),
                                      int(filename.split("iter-")[1].split("__")[0])))
     model_filename = files[-1]
-    return load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename), TrainingConfigs)
+    res = load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename), TrainingConfigs)
+    # avoiding a bug in pytorch loading/saving optimizer
+    if '_last_lr' in res[2].state_dict().keys():
+        set_lr_to_optimizer(optimizer, res[2]._last_lr)
+    else:
+        set_lr_to_optimizer(optimizer, TrainingConfigs.LEARNING_RATE)
+    res[1] = optimizer
+    return res
+
+
+def set_lr_to_optimizer(optimizer, lr):
+    for g in optimizer.param_groups:
+        g['lr'] = lr
 
 
 def load_statedict(model, path, TrainingConfigs):
