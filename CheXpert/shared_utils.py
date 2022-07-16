@@ -137,7 +137,6 @@ def get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs, by_
 
 
 def auc_score(labels, outputs, **kargs):
-    outputs = torch.sigmoid(outputs)
     AUROCs = []
     num_classes = labels.shape[1]
     for i in range(num_classes):
