@@ -163,6 +163,8 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Training
             "valid_auc": [-1]
         }
         return model, optimizer, scheduler, criterion, results, 0, -1
+    files.sort(key=lambda filename: (int(filename.split("epoch-")[1].split("__")[0]),
+                                     int(filename.split("iter-")[1].split("__")[0])))
     model_filename = files[-1]
     return load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename), TrainingConfigs)
 
