@@ -81,7 +81,7 @@ def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_da
     torch.save(statedata, filepath)
     vprint(f"{time_str}: Checkpoint Created For {TrainingConfigs.MODEL_VERSION}.", TrainingConfigs)
     vprint('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
-          % (epoch + 1, TrainingConfigs.EPOCHS,
+          % (epoch, TrainingConfigs.EPOCHS,
              i, TrainingConfigs.TRAIN_LOADER_SIZE - 1,
              np.mean(results["train_loss"][-100:]),
              results["valid_loss"][-1],
@@ -166,10 +166,16 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Training
     files.sort(key=lambda filename: (int(filename.split("epoch-")[1].split("__")[0]),
                                      int(filename.split("iter-")[1].split("__")[0])))
     model_filename = files[-1]
+    # ['model', 'optimizer', 'scheduler', 'criterion', 'results', 'epoch', 'iter']
     res = load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename), TrainingConfigs)
+    if res[6] == TrainingConfigs.TRAIN_LOADER_SIZE:
+        # if epoch if finished, proceed to the next one
+        # avoiding from fast-forward the entire dataset
+        res[5] += 1
+        res[6] = -1
     # avoiding a bug in pytorch loading/saving optimizer
     if '_last_lr' in res[2].state_dict().keys():
-        set_lr_to_optimizer(optimizer, res[2]._last_lr)
+        set_lr_to_optimizer(optimizer, res[2]._last_lr[0])
     else:
         set_lr_to_optimizer(optimizer, TrainingConfigs.LEARNING_RATE)
     res[1] = optimizer
