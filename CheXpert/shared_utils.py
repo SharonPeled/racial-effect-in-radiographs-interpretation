@@ -52,10 +52,10 @@ def get_time_str():
 
 
 def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_dataloader, results, TrainingConfigs,
-                                                             score_dict, by_study=None, challenge_ann_only=None):
+                      score_dict, apply_on_outputs=lambda x:x, by_study=None, challenge_ann_only=None):
     try:
         score_vals_dict = calc_scores(score_dict.keys(), model, valid_dataloader, TrainingConfigs, criterion,
-                                            by_study, challenge_ann_only)
+                                      apply_on_outputs, by_study, challenge_ann_only)
         for score_name, score_value in score_vals_dict.items():
             results[score_dict[score_name]].append(score_value)
     except Exception as e:
@@ -89,8 +89,10 @@ def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_da
           TrainingConfigs, end="\n\n")
 
 
-def calc_scores(scores, model, dataloader, TrainingConfigs, criterion=None, by_study=None, challenge_ann_only=None):
-    labels, outputs = get_metric_tensors(model, dataloader, TrainingConfigs, by_study, challenge_ann_only)
+def calc_scores(scores, model, dataloader, TrainingConfigs, criterion=None, apply_on_outputs=lambda x:x,
+                by_study=None, challenge_ann_only=None):
+    labels, outputs = get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs,
+                                         by_study, challenge_ann_only)
     score_vals_dict = {}
     if 'loss' in scores:
         score_vals_dict['loss'] = criterion(labels, outputs).item()
@@ -99,7 +101,7 @@ def calc_scores(scores, model, dataloader, TrainingConfigs, criterion=None, by_s
     return score_vals_dict
 
 
-def get_metric_tensors(model, dataloader, TrainingConfigs, by_study=None, challenge_ann_only=False):
+def get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs, by_study, challenge_ann_only):
     """
     by_study - if None it's ignored. Else should be an agg function to apply on study view outputs.
     For example: max (as in the original paper), mean, min, etc.
@@ -131,7 +133,7 @@ def get_metric_tensors(model, dataloader, TrainingConfigs, by_study=None, challe
                        if col in TrainingConfigs.CHALLENGE_ANNOTATIONS_COLUMNS]
         all_labels = all_labels[:,col_inds]
         all_outputs = all_outputs[:,col_inds]
-    return all_labels, all_outputs
+    return all_labels, apply_on_outputs(all_outputs)
 
 
 def auc_score(labels, outputs, **kargs):
@@ -175,6 +177,15 @@ def load_statedict(model, path, TrainingConfigs):
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
     return [statedata[k] for k in ['model', 'optimizer', 'scheduler', 'criterion', 'results', 'epoch', 'iter']]
+
+
+def load_model(TrainingConfigs):
+    path = os.path.join(TrainingConfigs.DISEASE_PRETRAINED_MODEL_PATH)
+    if not torch.cuda.is_available():
+        statedata = torch.load(path, map_location=torch.device('cpu'))
+    else:
+        statedata = torch.load(path, map_location=torch.device('cuda'))
+    return statedata['model']
 
 
 
