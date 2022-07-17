@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from CheXpert.disease_prediction.utils import Configs as disease_configs
 
 
 @dataclass
@@ -14,3 +15,4 @@ class Configs:
         "Hispanic": ["Other, Hispanic", "White, Hispanic"]
     }
     NUM_CLASSES = len(RACE_DICT.keys())
+    NUM_DISEASE_CLASSES = disease_configs.NUM_CLASSES
