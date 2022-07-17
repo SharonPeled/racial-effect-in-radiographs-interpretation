@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from collections import defaultdict
 from CheXpert.generic_dataset import CheXpertDataset
-from utils import Configs
+from CheXpert.race_prediction.utils import Configs
 
 
 class CheXpertRaceDataset(CheXpertDataset):
