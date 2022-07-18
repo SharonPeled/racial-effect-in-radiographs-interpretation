@@ -208,7 +208,7 @@ def load_model(model, model_fullpath):
     return model
 
 
-def requires_grad_update_by_layer(model, target_layer_name, TrainingConfigs, requires_grad):
+def requires_grad_update_by_layer(model, TrainingConfigs, requires_grad):
     """
     Finds <target_layer_name> location in <model> and update requires_grad attribute
     to all <target_layer_name> descendants layers (excluding <target_layer_name> itself).
@@ -216,7 +216,7 @@ def requires_grad_update_by_layer(model, target_layer_name, TrainingConfigs, req
     If <target_layer_name> repeats itself in the network, the alg stops on the first encounter (the shallowest
     <target_layer_name> in the nn).
     """
-    found = requires_grad_update_by_layer_aux(model, TrainingConfigs.MODEL_VERSION, target_layer_name,
+    found = requires_grad_update_by_layer_aux(model, TrainingConfigs.MODEL_VERSION, TrainingConfigs.FREEZING_POINT,
                                               requires_grad, TrainingConfigs)
     if not found:
         raise Exception(f"{target_layer_name} wasn't found in model.")
@@ -240,6 +240,7 @@ def requires_grad_update_by_layer_aux(root_module, root_module_name, stop_target
     if found:
         vprint(str(modules_to_update_names), TrainingConfigs)
         for module in modules_to_update:
-            module.requires_grad = requires_grad
+            for p in module.parameters():
+                p.requires_grad = requires_grad
         return True
     return None
