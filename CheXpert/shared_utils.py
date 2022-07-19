@@ -6,7 +6,7 @@ from torch import nn
 import random
 import datetime
 from sklearn.metrics import roc_auc_score
-
+from torchvision.models import densenet121
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -219,7 +219,7 @@ def requires_grad_update_by_layer(model, TrainingConfigs, requires_grad):
     found = requires_grad_update_by_layer_aux(model, TrainingConfigs.MODEL_VERSION, TrainingConfigs.FREEZING_POINT,
                                               requires_grad, TrainingConfigs)
     if not found:
-        raise Exception(f"{target_layer_name} wasn't found in model.")
+        raise Exception(f"{TrainingConfigs.FREEZING_POINT} wasn't found in model.")
 
 
 def requires_grad_update_by_layer_aux(root_module, root_module_name, stop_target_module,

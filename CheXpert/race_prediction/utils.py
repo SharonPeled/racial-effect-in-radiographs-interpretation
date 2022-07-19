@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from CheXpert.disease_prediction.utils import Configs as disease_configs
+from enum import Enum
 
 
 @dataclass
@@ -16,3 +17,11 @@ class Configs:
     }
     NUM_CLASSES = len(RACE_DICT.keys())
     NUM_DISEASE_CLASSES = disease_configs.NUM_CLASSES
+
+
+class Mode(Enum):
+    Full = 1 # regular training with pretrained model
+    PartlyFreezed = 2 # training with first part of the network freezed
+    Shallow = 3
+
+
