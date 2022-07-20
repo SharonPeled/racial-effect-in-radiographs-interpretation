@@ -208,6 +208,15 @@ def load_model(model, model_fullpath):
     return model
 
 
+def load_portion_of_pretrained_model(full_model, shallow_model):
+    pretrained_model_state_dict = full_model.state_dict()
+    shallow_model_state_dict = shallow_model.state_dict()
+    new_shallow_state_dict = {k: v for k, v in pretrained_model_state_dict.items() if k in shallow_model_state_dict}
+    shallow_model_state_dict.update(new_shallow_state_dict)
+    shallow_model.load_state_dict(shallow_model_state_dict)
+    return shallow_model
+
+
 def requires_grad_update_by_layer(model, TrainingConfigs, requires_grad):
     """
     Finds <target_layer_name> location in <model> and update requires_grad attribute
