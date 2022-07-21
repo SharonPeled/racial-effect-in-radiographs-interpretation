@@ -136,7 +136,7 @@ def get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs, by_
     return all_labels, apply_on_outputs(all_outputs)
 
 
-def auc_score(labels, outputs, **kargs):
+def auc_score(labels, outputs, per_class=False, **kargs):
     AUROCs = []
     num_classes = labels.shape[1]
     for i in range(num_classes):
@@ -144,8 +144,11 @@ def auc_score(labels, outputs, **kargs):
             # there are classes with single class value in validation
             # which throws an error
             AUROCs.append(roc_auc_score(labels[:, i], outputs[:, i], **kargs))
-        except:
-            pass
+        except Exception as e:
+            print(e)
+            AUROCs.append(-1)
+    if per_class:
+        return AUROCs
     return np.mean(AUROCs)
 
 
@@ -195,7 +198,10 @@ def load_statedict(model, path, TrainingConfigs):
         statedata = torch.load(path, map_location=torch.device('cuda'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
-    return [statedata[k] for k in ['model', 'optimizer', 'scheduler', 'criterion', 'results', 'epoch', 'iter']]
+    if model.training:
+        return [statedata[k] for k in ['model', 'optimizer', 'scheduler', 'criterion', 'results', 'epoch', 'iter']]
+    else:
+        return [statedata[k] for k in ['model', 'results', 'epoch', 'iter']]
 
 
 def load_model(model, model_fullpath):
