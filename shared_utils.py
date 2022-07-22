@@ -6,7 +6,7 @@ from torch import nn
 import random
 import datetime
 from sklearn.metrics import roc_auc_score
-from torchvision.models import densenet121
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
