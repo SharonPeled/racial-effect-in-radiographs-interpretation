@@ -1,10 +1,10 @@
 import os
 import numpy as np
-from CheXpert.generic_dataset import CheXpertDataset
+from generic_dataset import GenericDataset
 from CheXpert.disease_prediction.utils import Configs
 
 
-class CheXpertDiseaseDataset(CheXpertDataset):
+class CheXpertDiseaseDataset(GenericDataset):
     def __init__(self, data_dir, labels_filename, transform=None, target_transform=None):
         super().__init__(data_dir, labels_filename, transform, target_transform)
         self.transform_labels()

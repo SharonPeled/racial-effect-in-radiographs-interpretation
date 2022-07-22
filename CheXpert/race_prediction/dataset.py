@@ -1,11 +1,11 @@
 import pandas as pd
 import os
 from collections import defaultdict
-from CheXpert.generic_dataset import CheXpertDataset
+from generic_dataset import GenericDataset
 from CheXpert.race_prediction.utils import Configs
 
 
-class CheXpertRaceDataset(CheXpertDataset):
+class CheXpertRaceDataset(GenericDataset):
     def __init__(self, data_dir, demo_filename, labels_filename, transform=None, target_transform=None):
         super().__init__(data_dir, labels_filename, transform, target_transform)
         self.original_demo = pd.read_csv(os.path.join(self.data_dir, demo_filename))

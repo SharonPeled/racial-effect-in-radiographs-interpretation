@@ -7,7 +7,7 @@ from sklearn.model_selection import GroupShuffleSplit
 import os
 
 
-class CheXpertDataset(Dataset):
+class GenericDataset(Dataset):
     def __init__(self, data_dir, labels_filename, transform=None, target_transform=None):
         self.data_dir = data_dir
         self.transform = transform
