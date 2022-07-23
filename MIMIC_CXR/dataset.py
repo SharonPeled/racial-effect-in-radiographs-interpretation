@@ -8,6 +8,7 @@ from shared_utils import vprint, Mode
 import datetime
 from CheXpert.race_prediction.dataset import CheXpertRaceDataset
 from CheXpert.disease_prediction.dataset import CheXpertDiseaseDataset
+import shared_utils
 
 
 class CXRDataset(GenericDataset):
@@ -36,7 +37,7 @@ class CXRDataset(GenericDataset):
         df_cxr_joined = df_cxp.merge(df_adm, on='subject_id').\
             merge(df_patients, on='subject_id').merge(df_split, on=['subject_id', 'study_id'])
         df_cxr_joined['race'] = df_cxr_joined.ethnicity.replace(Configs.RACE_DICT_REVERSED_FULL)
-        df_cxr_joined['age'] = df_cxr_joined.anchor_age.apply(utils.age_to_age_group)
+        df_cxr_joined['age'] = df_cxr_joined.anchor_age.apply(shared_utils.age_to_age_group)
         df_cxr_demo = df_cxr_joined[
             ['subject_id', 'study_id', 'split', 'dicom_id'] + ['ethnicity', 'race', 'age', 'gender'] + Configs.DISEASE_ANNOTATIONS_COLUMNS]
         df_temp = (df_cxr_demo.groupby('subject_id')[['race', 'age', 'gender']].nunique() == 1).all(axis=1)

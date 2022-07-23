@@ -1,14 +1,11 @@
 from dataclasses import dataclass
-from CheXpert.disease_prediction.utils import Configs as disease_configs
+from CheXpert.disease_prediction.utils import Configs as DiseaseConfigs
 from enum import Enum
+from shared_utils import SharedConfigs
 
 
 @dataclass
-class Configs:
-    # configuration for the race prediction task
-    SEED = 123
-    VERBOSE = 2
-    OUT_FILE = r"log.txt"
+class Configs(SharedConfigs):
     RACE_DICT = {
         "White": ["White", "White, non-Hispanic", "White or Caucasian"],
         "Asian": ["Asian", "Asian, non-Hispanic", ],
@@ -17,7 +14,7 @@ class Configs:
     }
     ANNOTATIONS_COLUMNS = ['Asian', 'Black', 'Hispanic', 'White']
     NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
-    NUM_DISEASE_CLASSES = disease_configs.NUM_CLASSES
+    NUM_DISEASE_CLASSES = DiseaseConfigs.NUM_CLASSES
 
 
 class RaceTrainingMode(Enum):

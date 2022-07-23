@@ -1,12 +1,9 @@
 from dataclasses import dataclass
+from shared_utils import SharedConfigs
 
 
 @dataclass
-class Configs:
-    # configuration for the disease prediction task
-    SEED = 123
-    VERBOSE = 2
-    OUT_FILE = r"log.txt"
+class Configs(SharedConfigs):
     ALL_ANNOTATIONS_COLUMNS = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
                       'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia',
                       'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other',

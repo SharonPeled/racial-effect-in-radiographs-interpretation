@@ -7,11 +7,19 @@ import random
 import datetime
 from sklearn.metrics import roc_auc_score
 from enum import Enum
+from dataclasses import dataclass
 
 
 class Mode(Enum):
     Disease = 1
     Race = 2
+
+
+@dataclass
+class SharedConfigs:
+    SEED = 123
+    VERBOSE = 2
+    OUT_FILE = r"log.txt"
 
 
 def set_seed(seed):
@@ -24,7 +32,7 @@ def to_gpu(x):
     return x.cuda() if torch.cuda.is_available() else x
 
 
-def vprint(s:str, TrainingConfigs, **print_kargs):
+def vprint(s:str, Configs, **print_kargs):
     """
     verbose based vprint
     Verbose=0: suppress vprints
@@ -33,22 +41,22 @@ def vprint(s:str, TrainingConfigs, **print_kargs):
     """
     curr_time = str(datetime.datetime.now())[:-10]
     s = f"{curr_time}: {s}"
-    if TrainingConfigs.VERBOSE == 0:
+    if Configs.VERBOSE == 0:
         return
-    if TrainingConfigs.VERBOSE >= 1:
+    if Configs.VERBOSE >= 1:
         print(s, **print_kargs)
-    if TrainingConfigs.VERBOSE == 2:
-        with open(TrainingConfigs.OUT_FILE, "a") as file:
+    if Configs.VERBOSE == 2:
+        with open(Configs.OUT_FILE, "a") as file:
             file.write(str(s) + '\n')
             file.flush()
 
 
-def start_training_msg(TrainingConfigs):
-    vprint('', TrainingConfigs) # newline
-    vprint("-" * 100, TrainingConfigs)
-    vprint("-" * 100, TrainingConfigs)
-    vprint('', TrainingConfigs) # newline
-    vprint("Start Training", TrainingConfigs)
+def start_training_msg(Configs):
+    vprint('', Configs) # newline
+    vprint("-" * 100, Configs)
+    vprint("-" * 100, Configs)
+    vprint('', Configs) # newline
+    vprint("Start Training", Configs)
 
 
 def get_time_str():
@@ -57,20 +65,20 @@ def get_time_str():
     return time_str.translate(trans)
 
 
-def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_dataloader, results, TrainingConfigs,
+def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_dataloader, results, Configs,
                       score_dict, apply_on_outputs=lambda x:x, by_study=None, challenge_ann_only=None):
     try:
-        score_vals_dict = calc_scores(score_dict.keys(), model, valid_dataloader, TrainingConfigs, criterion,
+        score_vals_dict = calc_scores(score_dict.keys(), model, valid_dataloader, Configs, criterion,
                                       apply_on_outputs, by_study, challenge_ann_only)
         for score_name, score_value in score_vals_dict.items():
             results[score_dict[score_name]].append(score_value)
     except Exception as e:
-        vprint(str(e), TrainingConfigs)
+        vprint(str(e), Configs)
     # metadata for file naming
     metadata = {
         "epoch": epoch,
         "iter": i,
-        "batch_size": TrainingConfigs.BATCH_SIZE,
+        "batch_size": Configs.BATCH_SIZE,
         "trainLastLoss": np.mean(results["train_loss"][-1]),
         "validAUC": results["valid_auc"][-1]
     }
@@ -81,23 +89,23 @@ def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_da
     }
     time_str = get_time_str()
     metadata_suffix = '__'.join([f"{k}-{round(v,4)}" for k, v in metadata.items()])
-    filename = f"{time_str}__{TrainingConfigs.MODEL_VERSION}__{metadata_suffix}.dict"
-    filepath = os.path.join(TrainingConfigs.CHECKPOINT_DIR, filename)
+    filename = f"{time_str}__{Configs.MODEL_VERSION}__{metadata_suffix}.dict"
+    filepath = os.path.join(Configs.CHECKPOINT_DIR, filename)
     statedata = {**training_objects, **metadata, **{"model": model.state_dict(), "results": results}}
     torch.save(statedata, filepath)
-    vprint(f"{time_str}: Checkpoint Created For {TrainingConfigs.MODEL_VERSION}.", TrainingConfigs)
+    vprint(f"{time_str}: Checkpoint Created For {Configs.MODEL_VERSION}.", Configs)
     vprint('Epoch [%d/%d],   Iter [%d/%d],   Train Loss: %.4f,   Valid Loss: %.4f,   Valid AUC: %.4f'
-          % (epoch, TrainingConfigs.EPOCHS,
-             i, TrainingConfigs.TRAIN_LOADER_SIZE - 1,
+          % (epoch, Configs.EPOCHS,
+             i, Configs.TRAIN_LOADER_SIZE - 1,
              np.mean(results["train_loss"][-100:]),
              results["valid_loss"][-1],
              results["valid_auc"][-1]),
-          TrainingConfigs, end="\n\n")
+          Configs, end="\n\n")
 
 
-def calc_scores(scores, model, dataloader, TrainingConfigs, criterion=None, apply_on_outputs=lambda x:x,
+def calc_scores(scores, model, dataloader, Configs, criterion=None, apply_on_outputs=lambda x:x,
                 by_study=None, challenge_ann_only=None):
-    labels, outputs = get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs,
+    labels, outputs = get_metric_tensors(model, dataloader, Configs, apply_on_outputs,
                                          by_study, challenge_ann_only)
     score_vals_dict = {}
     if 'loss' in scores:
@@ -107,7 +115,7 @@ def calc_scores(scores, model, dataloader, TrainingConfigs, criterion=None, appl
     return score_vals_dict
 
 
-def get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs, by_study, challenge_ann_only):
+def get_metric_tensors(model, dataloader, Configs, apply_on_outputs, by_study, challenge_ann_only):
     """
     by_study - if None it's ignored. Else should be an agg function to apply on study view outputs.
     For example: max (as in the original paper), mean, min, etc.
@@ -124,19 +132,19 @@ def get_metric_tensors(model, dataloader, TrainingConfigs, apply_on_outputs, by_
     model.train()
     all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
     if by_study:
-        all_labels_df = pd.DataFrame(all_labels, columns=TrainingConfigs.ANNOTATIONS_COLUMNS)
+        all_labels_df = pd.DataFrame(all_labels, columns=Configs.ANNOTATIONS_COLUMNS)
         all_labels_df[["patient_id", "study", "view"]] = dataloader.dataset.get_attributes(columns=
                                                                                            ["patient_id", "study", "view"])
-        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[TrainingConfigs.ANNOTATIONS_COLUMNS]
-        all_outputs_df = pd.DataFrame(all_outputs, columns=TrainingConfigs.ANNOTATIONS_COLUMNS)
+        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS]
+        all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.ANNOTATIONS_COLUMNS)
         all_outputs_df[["patient_id", "study", "view"]] = dataloader.dataset.get_attributes(columns=
                                                                                            ["patient_id", "study", "view"])
-        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[TrainingConfigs.ANNOTATIONS_COLUMNS]
+        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.ANNOTATIONS_COLUMNS]
         all_labels, all_outputs = torch.Tensor(study_labels.values), torch.Tensor(study_outputs.values)
     if challenge_ann_only:
         # for disease prediction task only
-        col_inds = [i for i, col in enumerate(TrainingConfigs.ANNOTATIONS_COLUMNS)
-                       if col in TrainingConfigs.CHALLENGE_ANNOTATIONS_COLUMNS]
+        col_inds = [i for i, col in enumerate(Configs.ANNOTATIONS_COLUMNS)
+                       if col in Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
         all_labels = all_labels[:,col_inds]
         all_outputs = all_outputs[:,col_inds]
     return all_labels, apply_on_outputs(all_outputs)
@@ -162,13 +170,13 @@ def add_mean_to_list(a):
     return a
     
 
-def get_previous_training_place(model, optimizer, scheduler, criterion, TrainingConfigs):
-    if not os.path.isdir(TrainingConfigs.CHECKPOINT_DIR):
-        os.mkdir(TrainingConfigs.CHECKPOINT_DIR)
-    if TrainingConfigs.TRAINED_MODEL_PATH:
-        return load_statedict(model, TrainingConfigs.TRAINED_MODEL_PATH, TrainingConfigs)
-    _, _, files = next(os.walk(TrainingConfigs.CHECKPOINT_DIR))
-    files = [filename for filename in files if filename.split("__")[1] == TrainingConfigs.MODEL_VERSION]
+def get_previous_training_place(model, optimizer, scheduler, criterion, Configs):
+    if not os.path.isdir(Configs.CHECKPOINT_DIR):
+        os.mkdir(Configs.CHECKPOINT_DIR)
+    if Configs.TRAINED_MODEL_PATH:
+        return load_statedict(model, Configs.TRAINED_MODEL_PATH, Configs)
+    _, _, files = next(os.walk(Configs.CHECKPOINT_DIR))
+    files = [filename for filename in files if filename.split("__")[1] == Configs.MODEL_VERSION]
     if not files:
         results = {
             "train_loss": [-1],
@@ -180,8 +188,8 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Training
                                      int(filename.split("iter-")[1].split("__")[0])))
     model_filename = files[-1]
     # ['model', 'optimizer', 'scheduler', 'criterion', 'results', 'epoch', 'iter']
-    res = load_statedict(model, os.path.join(TrainingConfigs.CHECKPOINT_DIR, model_filename), TrainingConfigs)
-    if res[6] == TrainingConfigs.TRAIN_LOADER_SIZE:
+    res = load_statedict(model, os.path.join(Configs.CHECKPOINT_DIR, model_filename), Configs)
+    if res[6] == Configs.TRAIN_LOADER_SIZE:
         # if epoch if finished, proceed to the next one
         # avoiding from fast-forward the entire dataset
         res[5] += 1
@@ -190,7 +198,7 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Training
     if '_last_lr' in res[2].state_dict().keys():
         set_lr_to_optimizer(optimizer, res[2]._last_lr[0])
     else:
-        set_lr_to_optimizer(optimizer, TrainingConfigs.LEARNING_RATE)
+        set_lr_to_optimizer(optimizer, Configs.LEARNING_RATE)
     res[1] = optimizer
     return res
 
@@ -200,8 +208,8 @@ def set_lr_to_optimizer(optimizer, lr):
         g['lr'] = lr
 
 
-def load_statedict(model, path, TrainingConfigs, device='gpu'):
-    vprint(f"Loading model - {path}", TrainingConfigs)
+def load_statedict(model, path, Configs, device='gpu'):
+    vprint(f"Loading model - {path}", Configs)
     if torch.cuda.is_available() and device == 'gpu':
         statedata = torch.load(path, map_location=torch.device('cuda'))
     else:
@@ -233,7 +241,7 @@ def load_portion_of_pretrained_model(full_model, shallow_model):
     return shallow_model
 
 
-def requires_grad_update_by_layer(model, TrainingConfigs, requires_grad):
+def requires_grad_update_by_layer(model, Configs, requires_grad):
     """
     Finds <target_layer_name> location in <model> and update requires_grad attribute
     to all <target_layer_name> descendants layers (excluding <target_layer_name> itself).
@@ -241,14 +249,14 @@ def requires_grad_update_by_layer(model, TrainingConfigs, requires_grad):
     If <target_layer_name> repeats itself in the network, the alg stops on the first encounter (the shallowest
     <target_layer_name> in the nn).
     """
-    found = requires_grad_update_by_layer_aux(model, TrainingConfigs.MODEL_VERSION, TrainingConfigs.FREEZING_POINT,
-                                              requires_grad, TrainingConfigs)
+    found = requires_grad_update_by_layer_aux(model, Configs.MODEL_VERSION, Configs.FREEZING_POINT,
+                                              requires_grad, Configs)
     if not found:
-        raise Exception(f"{TrainingConfigs.FREEZING_POINT} wasn't found in model.")
+        raise Exception(f"{Configs.FREEZING_POINT} wasn't found in model.")
 
 
 def requires_grad_update_by_layer_aux(root_module, root_module_name, stop_target_module,
-                                      requires_grad, TrainingConfigs):
+                                      requires_grad, Configs):
     if not root_module._modules:
         return False
     if root_module_name == stop_target_module:
@@ -257,13 +265,13 @@ def requires_grad_update_by_layer_aux(root_module, root_module_name, stop_target
     modules_to_update_names = []
     for module_name, module in root_module._modules.items():
         found = requires_grad_update_by_layer_aux(module, module_name, stop_target_module, requires_grad,
-                                                  TrainingConfigs)
+                                                  Configs)
         if found:
             break
         modules_to_update.append(module)
         modules_to_update_names.append(module_name)
     if found:
-        vprint(str(modules_to_update_names), TrainingConfigs)
+        vprint(str(modules_to_update_names), Configs)
         for module in modules_to_update:
             for p in module.parameters():
                 p.requires_grad = requires_grad

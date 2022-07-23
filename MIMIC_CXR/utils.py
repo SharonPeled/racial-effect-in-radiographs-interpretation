@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 from CheXpert.disease_prediction.utils import Configs as disease_congifs
 from CheXpert.race_prediction.utils import Configs as race_congifs
+from shared_utils import SharedConfigs
 
 
 @dataclass
-class Configs:
-    # configuration for the disease prediction task
-    SEED = 123
-    VERBOSE = 2
-    OUT_FILE = r"log.txt"
+class Configs(SharedConfigs):
     RACE_DICT_REVERSED_FULL = {
         "WHITE": "White",
         "OTHER": "Other",
