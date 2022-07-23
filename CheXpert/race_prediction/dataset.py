@@ -16,11 +16,16 @@ class CheXpertRaceDataset(GenericDataset):
         self.original_labels['img_path'] = self.original_labels.Path.apply(
             lambda p: os.path.abspath(os.path.join(self.data_dir, p[20:])))
         self.original_labels['PATIENT'] = self.original_labels.Path.apply(lambda p: p.split("/")[2])
-        reversed_race_dict = defaultdict(lambda: None,
-                                         dict((v, k) for k, v_list in Configs.RACE_DICT.items() for v in v_list))
-        self.df_labels['race'] = self.df_labels.PRIMARY_RACE.apply(lambda r: reversed_race_dict[r])
-        self.df_labels.dropna(subset=['race'], inplace=True)
-        race_encoding = pd.get_dummies(self.df_labels.race)
-        self.df_labels[race_encoding.columns] = race_encoding
+        self.df_labels = CheXpertRaceDataset.generate_race_dummies(self.df_labels, 'PRIMARY_RACE', Configs.RACE_DICT)
         self.df_labels = self.df_labels.merge(self.original_labels, how='inner', on='PATIENT')
-        self.ann_cols = list(race_encoding.columns)
+        self.ann_cols = Configs.ANNOTATIONS_COLUMNS
+
+    @staticmethod
+    def generate_race_dummies(df_labels, race_col, race_dict):
+        reversed_race_dict = defaultdict(lambda: None,
+                                         dict((v, k) for k, v_list in race_dict.items() for v in v_list))
+        df_labels['race'] = df_labels[race_col].apply(lambda r: reversed_race_dict[r])
+        df_labels.dropna(subset=['race'], inplace=True)
+        race_encoding = pd.get_dummies(df_labels.race)
+        df_labels[race_encoding.columns] = race_encoding
+        return df_labels

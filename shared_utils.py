@@ -146,11 +146,15 @@ def auc_score(labels, outputs, per_class=False, **kargs):
             AUROCs.append(roc_auc_score(labels[:, i], outputs[:, i], **kargs))
         except Exception as e:
             print(e)
-            AUROCs.append(-1)
+            AUROCs.append(np.nan)
     if per_class:
         return AUROCs
     return np.mean(AUROCs)
 
+def add_mean_to_list(a):
+    a.append(np.nanmean(a))
+    return a
+    
 
 def get_previous_training_place(model, optimizer, scheduler, criterion, TrainingConfigs):
     if not os.path.isdir(TrainingConfigs.CHECKPOINT_DIR):
@@ -190,12 +194,12 @@ def set_lr_to_optimizer(optimizer, lr):
         g['lr'] = lr
 
 
-def load_statedict(model, path, TrainingConfigs):
+def load_statedict(model, path, TrainingConfigs, device='gpu'):
     vprint(f"Loading model - {path}", TrainingConfigs)
-    if not torch.cuda.is_available():
-        statedata = torch.load(path, map_location=torch.device('cpu'))
-    else:
+    if torch.cuda.is_available() and device == 'gpu':
         statedata = torch.load(path, map_location=torch.device('cuda'))
+    else:
+        statedata = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(statedata['model'])
     statedata['model'] = model
     if model.training:

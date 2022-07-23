@@ -15,7 +15,7 @@ class Configs:
         "Black": ["Black or African American", "Black, non-Hispanic"],
         "Hispanic": ["Other, Hispanic", "White, Hispanic"]
     }
-    ANNOTATIONS_COLUMNS = list(RACE_DICT.keys())
+    ANNOTATIONS_COLUMNS = ['Asian', 'Black', 'Hispanic', 'White']
     NUM_CLASSES = len(ANNOTATIONS_COLUMNS)
     NUM_DISEASE_CLASSES = disease_configs.NUM_CLASSES
 
