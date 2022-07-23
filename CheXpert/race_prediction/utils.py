@@ -20,7 +20,7 @@ class Configs:
     NUM_DISEASE_CLASSES = disease_configs.NUM_CLASSES
 
 
-class Mode(Enum):
+class RaceTrainingMode(Enum):
     Full = 1 # regular training with pretrained model
     PartlyFreezed = 2 # training with first part of the network freezed
     Shallow = 3

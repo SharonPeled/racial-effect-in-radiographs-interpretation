@@ -1,12 +1,6 @@
 from dataclasses import dataclass
-from enum import Enum
 from CheXpert.disease_prediction.utils import Configs as disease_congifs
 from CheXpert.race_prediction.utils import Configs as race_congifs
-
-
-class Mode(Enum):
-    Disease = 1
-    Race = 2
 
 
 @dataclass
@@ -42,13 +36,6 @@ class Configs:
     RACE_ANNOTATIONS_COLUMNS = race_congifs.ANNOTATIONS_COLUMNS
     RACE_NUM_CLASSES = len(RACE_ANNOTATIONS_COLUMNS)
 
-
-def age_to_age_group(age):
-    if age < 40:
-        return '20-40'
-    elif age < 70:
-        return '40-70'
-    return '70-90'
 
 
 

@@ -6,6 +6,12 @@ from torch import nn
 import random
 import datetime
 from sklearn.metrics import roc_auc_score
+from enum import Enum
+
+
+class Mode(Enum):
+    Disease = 1
+    Race = 2
 
 
 def set_seed(seed):
@@ -263,3 +269,23 @@ def requires_grad_update_by_layer_aux(root_module, root_module_name, stop_target
                 p.requires_grad = requires_grad
         return True
     return None
+
+
+def auc_per_protected_group(df_labels, mode, Configs, labels, outputs, protected_groups):
+    def agg_func(df_group, labels, outputs):
+        values = add_mean_to_list(auc_score(labels[df_group.index], outputs[df_group.index], per_class=True))
+        if mode == Mode.Disease:
+            keys = Configs.DISEASE_ANNOTATIONS_COLUMNS
+        if mode == Mode.Race:
+            keys = Configs.RACE_ANNOTATIONS_COLUMNS
+        return pd.Series(dict(zip(keys,values)))
+    res = df_labels.groupby(protected_groups).apply(lambda df_group: agg_func(df_group, labels, outputs)) 
+    return res.sort_index()
+    
+
+def age_to_age_group(age):
+    if age < 40:
+        return '20-40'
+    elif age < 70:
+        return '40-70'
+    return '70-90'

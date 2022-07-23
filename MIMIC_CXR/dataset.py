@@ -2,9 +2,9 @@ from generic_dataset import GenericDataset
 import pandas as pd
 import os
 from collections import defaultdict
-from MIMIC_CXR.utils import Configs, Mode
+from MIMIC_CXR.utils import Configs
 from MIMIC_CXR import utils
-from shared_utils import vprint
+from shared_utils import vprint, Mode
 import datetime
 from CheXpert.race_prediction.dataset import CheXpertRaceDataset
 from CheXpert.disease_prediction.dataset import CheXpertDiseaseDataset
