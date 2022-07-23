@@ -287,7 +287,9 @@ def auc_per_protected_group(df_labels, mode, Configs, labels, outputs, protected
         if mode == Mode.Race:
             keys = Configs.RACE_ANNOTATIONS_COLUMNS
         return pd.Series(dict(zip(keys,values)))
-    res = df_labels.groupby(protected_groups).apply(lambda df_group: agg_func(df_group, labels, outputs)) 
+    res = df_labels.groupby(protected_groups).apply(lambda df_group: agg_func(df_group, labels, outputs))
+    res = res.round(2)
+    res['Mean'] = res.apply(np.mean, axis=1)
     return res.sort_index()
     
 
