@@ -1,5 +1,6 @@
 from generic_dataset import GenericDataset
 import pandas as pd
+import numpy as np
 import os
 from collections import defaultdict
 from MIMIC_CXR.utils import Configs
@@ -46,6 +47,9 @@ class CXRDataset(GenericDataset):
         df_cxr_joined['age'] = df_cxr_joined.anchor_age.apply(shared_utils.age_to_age_group)
         df_cxr_demo = df_cxr_joined[
             ['subject_id', 'study_id', 'split', 'dicom_id'] + ['ethnicity', 'race', 'age', 'gender'] + Configs.DISEASE_ANNOTATIONS_COLUMNS]
+        is_patient_all_confident_labels = df_cxr_demo.groupby(['subject_id'])[Configs.DISEASE_ANNOTATIONS_COLUMNS].apply(lambda s: (s==-1).sum(axis=1).sum(axis=0)==0)
+        confidence_patients = np.array(is_patient_all_confident_labels[is_patient_all_confident_labels].index)
+        df_cxr_demo = df_cxr_demo[df_cxr_demo.subject_id.isin(confidence_patients)]
         df_temp = (df_cxr_demo.groupby('subject_id')[['race', 'age', 'gender']].nunique() == 1).all(axis=1)
         valid_subject_ids = df_temp[df_temp.values].index
         df_cxr_demo = df_cxr_demo[df_cxr_demo.subject_id.isin(valid_subject_ids)].drop_duplicates()

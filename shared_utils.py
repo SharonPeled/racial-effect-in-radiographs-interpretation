@@ -66,10 +66,10 @@ def get_time_str():
 
 
 def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_dataloader, results, Configs,
-                      score_dict, apply_on_outputs=lambda x:x, by_study=None, challenge_ann_only=None):
+                      score_dict, apply_on_outputs=lambda x:x, by_study=None, challenge_ann_only=None, org_valid_dataloader=None):
     try:
         score_vals_dict = calc_scores(score_dict.keys(), model, valid_dataloader, Configs, criterion,
-                                      apply_on_outputs, by_study, challenge_ann_only)
+                                      apply_on_outputs, by_study, challenge_ann_only, org_valid_dataloader=org_valid_dataloader)
         for score_name, score_value in score_vals_dict.items():
             results[score_dict[score_name]].append(score_value)
     except Exception as e:
@@ -80,7 +80,8 @@ def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_da
         "iter": i,
         "batch_size": Configs.BATCH_SIZE,
         "trainLastLoss": np.mean(results["train_loss"][-1]),
-        "validAUC": results["valid_auc"][-1]
+        "validAUC": results["valid_auc"][-1],
+        "orgValidAUC": results["org_valid_auc"][-1]
     }
     training_objects = {
         "optimizer": optimizer,
@@ -104,14 +105,18 @@ def create_checkpoint(model, optimizer, scheduler, criterion, epoch, i, valid_da
 
 
 def calc_scores(scores, model, dataloader, Configs, criterion=None, apply_on_outputs=lambda x:x,
-                by_study=None, challenge_ann_only=None):
+                by_study=None, challenge_ann_only=None, org_valid_dataloader=None):
     labels, outputs = get_metric_tensors(model, dataloader, Configs, apply_on_outputs,
                                          by_study, challenge_ann_only)
     score_vals_dict = {}
     if 'loss' in scores:
-        score_vals_dict['loss'] = criterion(labels, outputs).item()
+        score_vals_dict['loss'] = criterion(labels, outputs).mean().item()
     if 'auc' in scores:
         score_vals_dict['auc'] = auc_score(labels, outputs)
+    if 'original_valid_auc' in scores:
+        labels, outputs = get_metric_tensors(model, org_valid_dataloader, Configs, apply_on_outputs,
+                                             by_study, challenge_ann_only)
+        score_vals_dict['original_valid_auc'] = auc_score(labels, outputs)
     return score_vals_dict
 
 
@@ -132,14 +137,14 @@ def get_metric_tensors(model, dataloader, Configs, apply_on_outputs, by_study, c
     model.train()
     all_labels, all_outputs = torch.cat(all_labels).cpu(), torch.cat(all_outputs).cpu()
     if by_study:
-        all_labels_df = pd.DataFrame(all_labels, columns=Configs.ANNOTATIONS_COLUMNS)
+        all_labels_df = pd.DataFrame(all_labels, columns=Configs.CHALLENGE_ANNOTATIONS_COLUMNS)
         all_labels_df[["patient_id", "study", "view"]] = dataloader.dataset.get_attributes(columns=
                                                                                            ["patient_id", "study", "view"])
-        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.ANNOTATIONS_COLUMNS]
-        all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.ANNOTATIONS_COLUMNS)
+        study_labels = all_labels_df.groupby(["patient_id", "study"]).head(1)[Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
+        all_outputs_df = pd.DataFrame(all_outputs, columns=Configs.CHALLENGE_ANNOTATIONS_COLUMNS)
         all_outputs_df[["patient_id", "study", "view"]] = dataloader.dataset.get_attributes(columns=
                                                                                            ["patient_id", "study", "view"])
-        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.ANNOTATIONS_COLUMNS]
+        study_outputs = all_outputs_df.groupby(["patient_id", "study"]).agg(by_study)[Configs.CHALLENGE_ANNOTATIONS_COLUMNS]
         all_labels, all_outputs = torch.Tensor(study_labels.values), torch.Tensor(study_outputs.values)
     if challenge_ann_only:
         # for disease prediction task only
@@ -181,7 +186,8 @@ def get_previous_training_place(model, optimizer, scheduler, criterion, Configs)
         results = {
             "train_loss": [-1],
             "valid_loss": [-1],
-            "valid_auc": [-1]
+            "valid_auc": [-1],
+            "org_valid_auc": [-1]
         }
         return model, optimizer, scheduler, criterion, results, 0, -1
     files.sort(key=lambda filename: (int(filename.split("epoch-")[1].split("__")[0]),

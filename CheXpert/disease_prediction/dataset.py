@@ -5,8 +5,9 @@ from CheXpert.disease_prediction.utils import Configs
 
 
 class CheXpertDiseaseDataset(GenericDataset):
-    def __init__(self, data_dir, labels_filename, transform=None, target_transform=None):
+    def __init__(self, data_dir, labels_filename, transform=None, target_transform=None, sample_weight_factor=None):
         super().__init__(data_dir, labels_filename, transform, target_transform)
+        self.sample_weight_factor = sample_weight_factor
         self.transform_labels()
 
     def transform_labels(self):
@@ -18,6 +19,9 @@ class CheXpertDiseaseDataset(GenericDataset):
         self.df_labels['study'] = self.df_labels.original_path.apply(lambda p: p.split("/")[3])
         self.df_labels['view'] = self.df_labels.original_path.apply(lambda p: p.split("/")[4])
         self.ann_cols = Configs.ANNOTATIONS_COLUMNS
+        if self.sample_weight_factor is not None:
+            num_uncertainties = (self.original_labels[self.ann_cols]==-1).sum(axis=1)
+            self.df_labels['weight'] = self.sample_weight_factor**num_uncertainties
 
     @staticmethod
     def impute_uncertainties(df_labels):

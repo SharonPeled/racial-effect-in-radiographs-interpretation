@@ -15,6 +15,7 @@ class GenericDataset(Dataset):
         self.original_labels = pd.read_csv(os.path.join(self.data_dir, labels_filename))
         self.df_labels = None
         self.ann_cols = None
+        self.sample_weight_factor = None
 
     def __len__(self):
         return len(self.df_labels)
@@ -27,12 +28,12 @@ class GenericDataset(Dataset):
             image = self.transform(image)
         if self.target_transform:
             label = self.target_transform(label)
+        if self.sample_weight_factor is not None:
+            weight = example['weight']
+            return image, label, weight
         return image, label
 
     def get_attributes(self, columns):
         return self.df_labels[columns]
-
-
-
 
 

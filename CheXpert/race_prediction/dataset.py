@@ -6,19 +6,20 @@ from CheXpert.race_prediction.utils import Configs
 
 
 class CheXpertRaceDataset(GenericDataset):
-    def __init__(self, data_dir, demo_filename, labels_filename, transform=None, target_transform=None):
+    def __init__(self, data_dir, demo_filename, labels_filename, transform=None, target_transform=None, label_transform=True):
         super().__init__(data_dir, labels_filename, transform, target_transform)
         self.original_demo = pd.read_csv(os.path.join(self.data_dir, demo_filename))
-        self.transform_df_labels()
+        self.ann_cols = Configs.ANNOTATIONS_COLUMNS
+        self.df_labels = self.original_labels.copy()
+        if label_transform:
+            self.transform_df_labels()
 
     def transform_df_labels(self):
-        self.df_labels = self.original_demo.copy()
         self.original_labels['img_path'] = self.original_labels.Path.apply(
             lambda p: os.path.abspath(os.path.join(self.data_dir, p[20:])))
         self.original_labels['PATIENT'] = self.original_labels.Path.apply(lambda p: p.split("/")[2])
-        self.df_labels = CheXpertRaceDataset.generate_race_dummies(self.df_labels, 'PRIMARY_RACE', Configs.RACE_DICT)
+        self.df_labels = CheXpertRaceDataset.generate_race_dummies(self.original_demo, 'PRIMARY_RACE', Configs.RACE_DICT)
         self.df_labels = self.df_labels.merge(self.original_labels, how='inner', on='PATIENT')
-        self.ann_cols = Configs.ANNOTATIONS_COLUMNS
 
     @staticmethod
     def generate_race_dummies(df_labels, race_col, race_dict):
