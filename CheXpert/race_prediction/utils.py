@@ -20,6 +20,6 @@ class Configs(SharedConfigs):
 class RaceTrainingMode(Enum):
     Full = 1 # regular training with pretrained model
     PartlyFreezed = 2 # training with first part of the network freezed
-    Shallow = 3
+    Shallow = 3 # training a model with fewer layers
 
 
